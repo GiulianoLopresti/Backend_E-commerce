@@ -95,6 +95,10 @@ public class UserService {
             if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
                 throw new IllegalArgumentException("La contraseña actual es incorrecta");
             }
+
+            if (newPassword == null || newPassword.trim().isEmpty()) {
+                throw new IllegalArgumentException("La nueva contraseña no puede estar vacía");
+            }
             
             user.setPassword(passwordEncoder.encode(newPassword));
             return userRepository.save(user);

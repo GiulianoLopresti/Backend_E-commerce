@@ -8,14 +8,17 @@ import com.looprex.users.service.UserService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/users")
@@ -72,16 +75,30 @@ public class UserController {
     // 2. Register
     @Operation(summary = "Registrar usuario")
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse<UserResponse>> register(@RequestBody User user) {
+    public ResponseEntity<ApiResponse<UserResponse>> register(@Valid @RequestBody User user, BindingResult result) {
+        // Si hay errores de validación
+        if (result.hasErrors()) {
+            String errorMessage = result.getFieldErrors().stream()
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .collect(Collectors.joining(", "));
+            
+            ApiResponse<UserResponse> response = new ApiResponse<>(
+                false,
+                HttpStatus.BAD_REQUEST.value(),
+                errorMessage
+                );
+            return ResponseEntity.badRequest().body(response);
+        }
+            
         try {
             User newUser = userService.register(user);
             UserResponse userResponse = userMapper.toUserResponse(newUser);
-            
+                
             ApiResponse<UserResponse> response = new ApiResponse<>(
-                true,
-                HttpStatus.CREATED.value(),
-                "Usuario registrado exitosamente",
-                userResponse
+               true,
+               HttpStatus.CREATED.value(),
+               "Usuario registrado exitosamente",
+               userResponse
             );
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (IllegalArgumentException e) {
