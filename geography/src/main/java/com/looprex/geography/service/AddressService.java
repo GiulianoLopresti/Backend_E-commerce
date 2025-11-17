@@ -39,7 +39,8 @@ public class AddressService {
         return addressRepository.findByUserId(userId);
     }
 
-    public Address createAddress(Address address) {
+     public Address createAddress(Address address) {
+        // Validaciones básicas
         if (address.getStreet() == null || address.getStreet().trim().isEmpty()) {
             throw new IllegalArgumentException("La calle no puede estar vacía");
         }
@@ -52,19 +53,25 @@ public class AddressService {
             throw new IllegalArgumentException("La dirección debe estar asociada a un usuario");
         }
         
-        if (address.getComuna() == null) {
-            throw new IllegalArgumentException("La dirección debe tener una comuna");
+        if (address.getComuna() == null || address.getComuna().getComunaId() == null) {
+            throw new IllegalArgumentException("La dirección debe tener una comuna válida");
         }
         
-        if (!comunaRepository.existsById(address.getComuna().getComunaId())) {
-            throw new IllegalArgumentException("La comuna con ID " + address.getComuna().getComunaId() + " no existe");
-        }
+        // Cargar la comuna completa desde la BD
+        var comuna = comunaRepository.findById(address.getComuna().getComunaId())
+                .orElseThrow(() -> new IllegalArgumentException("La comuna con ID " + address.getComuna().getComunaId() + " no existe"));
         
+        address.setComuna(comuna);
+        
+        // Validar que el usuario existe (ANTES de guardar)
         if (!userClient.userExists(address.getUserId())) {
             throw new IllegalArgumentException("El usuario con ID " + address.getUserId() + " no existe");
         }
         
-        return addressRepository.save(address);
+        // Guardar
+        Address saved = addressRepository.save(address);
+        
+        return addressRepository.findById(saved.getAddressId()).orElse(saved);
     }
 
     public Optional<Address> updateAddress(Long id, Address updatedAddress) {
@@ -74,7 +81,10 @@ public class AddressService {
             updateComunaIfProvided(updatedAddress, existingAddress);
             updateUserIdIfProvided(updatedAddress, existingAddress);
             
-            return addressRepository.save(existingAddress);
+            Address saved = addressRepository.save(existingAddress);
+            
+            // Recargar para obtener todas las relaciones
+            return addressRepository.findById(saved.getAddressId()).orElse(saved);
         });
     }
 

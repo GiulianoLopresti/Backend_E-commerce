@@ -1,6 +1,7 @@
 package com.looprex.geography.service;
 
 import com.looprex.geography.model.Comuna;
+import com.looprex.geography.model.Region;
 import com.looprex.geography.repository.ComunaRepository;
 import com.looprex.geography.repository.RegionRepository;
 import org.springframework.stereotype.Service;
@@ -36,33 +37,35 @@ public class ComunaService {
 
     // Crear nueva comuna
     public Comuna createComuna(Comuna comuna) {
-        // Validaciones básicas
         if (comuna.getName() == null || comuna.getName().trim().isEmpty()) {
             throw new IllegalArgumentException("El nombre de la comuna no puede estar vacío");
         }
         
-        if (comuna.getRegion() == null) {
+        if (comuna.getRegion() == null || comuna.getRegion().getRegionId() == null) {
             throw new IllegalArgumentException("La comuna debe pertenecer a una región");
         }
         
-        // Validar que la región existe
-        if (!regionRepository.existsById(comuna.getRegion().getRegionId())) {
-            throw new IllegalArgumentException("La región con ID " + comuna.getRegion().getRegionId() + " no existe");
-        }
+        // Cargar la región completa desde la BD
+        Region region = regionRepository.findById(comuna.getRegion().getRegionId())
+                .orElseThrow(() -> new IllegalArgumentException("La región con ID " + comuna.getRegion().getRegionId() + " no existe"));
         
-        // Verificar duplicados
-        if (comunaRepository.findByNameAndRegionId(comuna.getName(), comuna.getRegion().getRegionId()).isPresent()) {
+        comuna.setRegion(region);
+        
+        // Verificar duplicados ANTES de guardar
+        if (comunaRepository.findByNameAndRegionId(comuna.getName(), region.getRegionId()).isPresent()) {
             throw new IllegalArgumentException("Ya existe una comuna con ese nombre en esta región");
         }
         
-        return comunaRepository.save(comuna);
+        // Guardar
+        Comuna saved = comunaRepository.save(comuna);
+        
+        return comunaRepository.findById(saved.getComunaId()).orElse(saved);
     }
 
     // Actualizar comuna
     public Optional<Comuna> updateComuna(Long id, Comuna updatedComuna) {
         return comunaRepository.findById(id).map(existingComuna -> {
             if (updatedComuna.getName() != null && !updatedComuna.getName().trim().isEmpty()) {
-                // Verificar duplicados
                 Optional<Comuna> comunaWithSameName = comunaRepository.findByNameAndRegionId(
                     updatedComuna.getName(), 
                     existingComuna.getRegion().getRegionId()
@@ -73,14 +76,17 @@ public class ComunaService {
                 existingComuna.setName(updatedComuna.getName());
             }
             
-            if (updatedComuna.getRegion() != null) {
-                if (!regionRepository.existsById(updatedComuna.getRegion().getRegionId())) {
-                    throw new IllegalArgumentException("La región con ID " + updatedComuna.getRegion().getRegionId() + " no existe");
-                }
-                existingComuna.setRegion(updatedComuna.getRegion());
+            if (updatedComuna.getRegion() != null && updatedComuna.getRegion().getRegionId() != null) {
+                Region region = regionRepository.findById(updatedComuna.getRegion().getRegionId())
+                        .orElseThrow(() -> new IllegalArgumentException("La región con ID " + updatedComuna.getRegion().getRegionId() + " no existe"));
+                existingComuna.setRegion(region);
             }
             
-            return comunaRepository.save(existingComuna);
+            //Guardar
+            Comuna saved = comunaRepository.save(existingComuna);
+            
+            // Recargar
+            return comunaRepository.findById(saved.getComunaId()).orElse(saved);
         });
     }
 

@@ -27,29 +27,32 @@ public class RegionService {
     }
 
     // Crear nueva región
-    public Region createRegion(Region region) {
+     public Region createRegion(Region region) {
         if (region.getName() == null || region.getName().trim().isEmpty()) {
             throw new IllegalArgumentException("El nombre de la región no puede estar vacío");
         }
         
+        // Verificar duplicados ANTES de guardar
         if (regionRepository.findByName(region.getName()).isPresent()) {
             throw new IllegalArgumentException("Ya existe una región con ese nombre");
         }
         
+        // Guardar y retornar directamente
         return regionRepository.save(region);
     }
 
     // Actualizar región
-    public Optional<Region> updateRegion(Long id, Region updatedRegion) {
+   public Optional<Region> updateRegion(Long id, Region updatedRegion) {
         return regionRepository.findById(id).map(existingRegion -> {
             if (updatedRegion.getName() != null && !updatedRegion.getName().trim().isEmpty()) {
-                // Verificar que el nuevo nombre no esté en uso por otra región
                 Optional<Region> regionWithSameName = regionRepository.findByName(updatedRegion.getName());
                 if (regionWithSameName.isPresent() && !regionWithSameName.get().getRegionId().equals(id)) {
                     throw new IllegalArgumentException("Ya existe otra región con ese nombre");
                 }
                 existingRegion.setName(updatedRegion.getName());
             }
+            
+            // Guardar y retornar
             return regionRepository.save(existingRegion);
         });
     }
