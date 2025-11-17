@@ -1,0 +1,169 @@
+package com.looprex.geography.controller;
+
+import com.looprex.geography.dto.ApiResponse;
+import com.looprex.geography.model.Comuna;
+import com.looprex.geography.service.ComunaService;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.Optional;
+
+@RestController
+@RequestMapping("/api/comunas")
+@Tag(name = "Comunas", description = "API para gestión de comunas")
+public class ComunaController {
+
+    private final ComunaService comunaService;
+
+    private static final String COMUNA_NOT_FOUND = "Comuna no encontrada";
+
+    public ComunaController(ComunaService comunaService) {
+        this.comunaService = comunaService;
+    }
+
+    @Operation(summary = "Obtener todas las comunas")
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<Comuna>>> getAllComunas() {
+        List<Comuna> comunas = comunaService.getAllComunas();
+        
+        if (comunas.isEmpty()) {
+            ApiResponse<List<Comuna>> response = new ApiResponse<>(
+                false,
+                HttpStatus.NO_CONTENT.value(),
+                "No se encontraron comunas en el sistema",
+                null,
+                0L
+            );
+            return ResponseEntity.status(HttpStatus.NO_CONTENT).body(response);
+        }
+        
+        ApiResponse<List<Comuna>> response = new ApiResponse<>(
+            true,
+            HttpStatus.OK.value(),
+            "Comunas obtenidas exitosamente",
+            comunas,
+            (long) comunas.size()
+        );
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "Obtener comuna por ID")
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<Comuna>> getComunaById(@PathVariable Long id) {
+        Optional<Comuna> comunaOpt = comunaService.getComunaById(id);
+        
+        if (comunaOpt.isPresent()) {
+            ApiResponse<Comuna> response = new ApiResponse<>(
+                true,
+                HttpStatus.OK.value(),
+                "Comuna encontrada",
+                comunaOpt.get()
+            );
+            return ResponseEntity.ok(response);
+        } else {
+            ApiResponse<Comuna> response = new ApiResponse<>(
+                false,
+                HttpStatus.NOT_FOUND.value(),
+                COMUNA_NOT_FOUND
+            );
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+        }
+    }
+
+    @Operation(summary = "Obtener comunas por región")
+    @GetMapping("/region/{regionId}")
+    public ResponseEntity<ApiResponse<List<Comuna>>> getComunasByRegionId(@PathVariable Long regionId) {
+        List<Comuna> comunas = comunaService.getComunasByRegionId(regionId);
+        
+        ApiResponse<List<Comuna>> response = new ApiResponse<>(
+            true,
+            HttpStatus.OK.value(),
+            "Comunas obtenidas exitosamente",
+            comunas,
+            (long) comunas.size()
+        );
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "Crear nueva comuna")
+    @PostMapping
+    public ResponseEntity<ApiResponse<Comuna>> createComuna(@RequestBody Comuna comuna) {
+        try {
+            Comuna created = comunaService.createComuna(comuna);
+            ApiResponse<Comuna> response = new ApiResponse<>(
+                true,
+                HttpStatus.CREATED.value(),
+                "Comuna creada exitosamente",
+                created
+            );
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } catch (IllegalArgumentException e) {
+            ApiResponse<Comuna> response = new ApiResponse<>(
+                false,
+                HttpStatus.BAD_REQUEST.value(),
+                e.getMessage()
+            );
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    @Operation(summary = "Actualizar comuna")
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<Comuna>> updateComuna(@PathVariable Long id, @RequestBody Comuna comuna) {
+        try {
+            Optional<Comuna> updatedOpt = comunaService.updateComuna(id, comuna);
+            
+            if (updatedOpt.isPresent()) {
+                ApiResponse<Comuna> response = new ApiResponse<>(
+                    true,
+                    HttpStatus.OK.value(),
+                    "Comuna actualizada exitosamente",
+                    updatedOpt.get()
+                );
+                return ResponseEntity.ok(response);
+            } else {
+                ApiResponse<Comuna> response = new ApiResponse<>(
+                    false,
+                    HttpStatus.NOT_FOUND.value(),
+                    COMUNA_NOT_FOUND
+                );
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+            }
+        } catch (IllegalArgumentException e) {
+            ApiResponse<Comuna> response = new ApiResponse<>(
+                false,
+                HttpStatus.BAD_REQUEST.value(),
+                e.getMessage()
+            );
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
+
+    @Operation(summary = "Eliminar comuna")
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteComuna(@PathVariable Long id) {
+        boolean deleted = comunaService.deleteComuna(id);
+        
+        if (deleted) {
+            ApiResponse<Void> response = new ApiResponse<>(
+                true,
+                HttpStatus.OK.value(),
+                "Comuna eliminada exitosamente"
+            );
+            return ResponseEntity.ok(response);
+        } else {
+            ApiResponse<Void> response = new ApiResponse<>(
+                false,
+                HttpStatus.NOT_FOUND.value(),
+                COMUNA_NOT_FOUND
+            );
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+        }
+    }
+}
