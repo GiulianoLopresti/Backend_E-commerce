@@ -21,6 +21,6 @@ public class Region {
     private Long regionId;
 
     @Column(name = "name", nullable = false, length = 100)
-    @Schema(description = "Nombre de la región", example = "Región Metropolitana", required = true)
+    @Schema(description = "Nombre de la región", example = "Región Metropolitana")
     private String name;
 }

@@ -11,6 +11,9 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.hamcrest.Matchers.containsString;
 
 import java.util.Arrays;
 import java.util.List;
@@ -130,7 +133,7 @@ class RegionControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.statusCode").value(400));
-    }
+        }
 
     @Test
     void updateRegion_DeberiaRetornar200CuandoActualizacionEsExitosa() throws Exception {
@@ -145,7 +148,7 @@ class RegionControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.message").value("Región actualizada exitosamente"));
-    }
+        }
 
     @Test
     void updateRegion_DeberiaRetornar404CuandoRegionNoExiste() throws Exception {
@@ -159,28 +162,45 @@ class RegionControllerTest {
                 .content(objectMapper.writeValueAsString(testRegion)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false));
-    }
-
+        }
+    
     @Test
     void deleteRegion_DeberiaRetornar200CuandoEliminacionEsExitosa() throws Exception {
         // Arrange
-        when(regionService.deleteRegion(1L)).thenReturn(true);
+        doNothing().when(regionService).deleteRegion(1L);
 
         // Act & Assert
         mockMvc.perform(delete("/api/regions/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.statusCode").value(200))
                 .andExpect(jsonPath("$.message").value("Región eliminada exitosamente"));
     }
-
+    
     @Test
     void deleteRegion_DeberiaRetornar404CuandoRegionNoExiste() throws Exception {
         // Arrange
-        when(regionService.deleteRegion(999L)).thenReturn(false);
-
+        doThrow(new IllegalArgumentException("Región no encontrada"))
+            .when(regionService).deleteRegion(999L);
         // Act & Assert
         mockMvc.perform(delete("/api/regions/999"))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.success").value(false));
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.statusCode").value(404))
+                .andExpect(jsonPath("$.message").value("Región no encontrada"));
     }
+    
+    @Test
+    void deleteRegion_DeberiaRetornar400CuandoTieneComunasAsociadas() throws Exception {
+        // Arrange
+        doThrow(new IllegalStateException("No se puede eliminar la región porque tiene 3 comuna(s) asociada(s). Elimina las comunas primero."))
+            .when(regionService).deleteRegion(1L);
+    // Act & Assert
+    mockMvc.perform(delete("/api/regions/1"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.success").value(false))
+            .andExpect(jsonPath("$.statusCode").value(400))
+            .andExpect(jsonPath("$.message").value(containsString("No se puede eliminar la región")))
+            .andExpect(jsonPath("$.message").value(containsString("comuna(s) asociada(s)")));
+        }               
 }

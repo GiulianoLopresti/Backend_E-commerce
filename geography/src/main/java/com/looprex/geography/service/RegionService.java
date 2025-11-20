@@ -1,6 +1,8 @@
 package com.looprex.geography.service;
 
+import com.looprex.geography.model.Comuna;
 import com.looprex.geography.model.Region;
+import com.looprex.geography.repository.ComunaRepository;
 import com.looprex.geography.repository.RegionRepository;
 import org.springframework.stereotype.Service;
 
@@ -11,9 +13,11 @@ import java.util.Optional;
 public class RegionService {
 
     private final RegionRepository regionRepository;
-
-    public RegionService(RegionRepository regionRepository) {
+    private final ComunaRepository comunaRepository;
+    
+    public RegionService(RegionRepository regionRepository, ComunaRepository comunaRepository) {
         this.regionRepository = regionRepository;
+        this.comunaRepository = comunaRepository;
     }
 
     // Obtener todas las regiones
@@ -58,12 +62,24 @@ public class RegionService {
     }
 
     // Eliminar región
-    public boolean deleteRegion(Long id) {
-        if (regionRepository.existsById(id)) {
-            regionRepository.deleteById(id);
-            return true;
+    public void deleteRegion(Long id) {
+        // Verificar que la región existe
+        if (!regionRepository.existsById(id)) {
+            throw new IllegalArgumentException("Región no encontrada");
         }
-        return false;
+        
+        // Verificar que no tenga comunas asociadas
+        List<Comuna> comunas = comunaRepository.findByRegionId(id);
+        if (!comunas.isEmpty()) {
+            throw new IllegalStateException(
+                "No se puede eliminar la región porque tiene " + 
+                comunas.size() + " comuna(s) asociada(s). " +
+                "Elimina las comunas primero."
+            );
+        }
+        
+        // Si no tiene comunas, eliminar
+        regionRepository.deleteById(id);
     }
 
     // Verificar si existe por nombre

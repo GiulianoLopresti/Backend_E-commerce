@@ -1,7 +1,9 @@
 package com.looprex.geography.service;
 
+import com.looprex.geography.model.Comuna;
 import com.looprex.geography.model.Region;
 import com.looprex.geography.repository.RegionRepository;
+import com.looprex.geography.repository.ComunaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,6 +24,9 @@ class RegionServiceTest {
 
     @Mock
     private RegionRepository regionRepository;
+
+    @Mock
+    private ComunaRepository comunaRepository;
 
     @InjectMocks
     private RegionService regionService;
@@ -177,25 +182,27 @@ class RegionServiceTest {
     void deleteRegion_DeberiaEliminarRegionExitosamente() {
         // Arrange
         when(regionRepository.existsById(1L)).thenReturn(true);
+        when(comunaRepository.findByRegionId(1L)).thenReturn(List.of()); // Sin comunas
 
         // Act
-        boolean result = regionService.deleteRegion(1L);
+        regionService.deleteRegion(1L);
 
         // Assert
-        assertTrue(result);
         verify(regionRepository, times(1)).deleteById(1L);
     }
 
     @Test
-    void deleteRegion_DeberiaRetornarFalsoCuandoRegionNoExiste() {
+    void deleteRegion_DeberiaLanzarExcepcionCuandoRegionNoExiste() {
         // Arrange
         when(regionRepository.existsById(999L)).thenReturn(false);
 
-        // Act
-        boolean result = regionService.deleteRegion(999L);
-
-        // Assert
-        assertFalse(result);
+        // Act & Assert
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> regionService.deleteRegion(999L)
+        );
+       
+        assertEquals("Región no encontrada", exception.getMessage());
         verify(regionRepository, never()).deleteById(any());
     }
 
@@ -209,6 +216,34 @@ class RegionServiceTest {
 
         // Assert
         assertTrue(result);
+    }
+
+    @Test
+    void deleteRegion_DeberiaLanzarExcepcionCuandoTieneComunasAsociadas() {
+        // Arrange
+        when(regionRepository.existsById(1L)).thenReturn(true);
+        
+        // Crear comunas mock
+        Comuna comuna1 = new Comuna();
+        comuna1.setComunaId(1L);
+        comuna1.setName("Comuna 1");
+        
+        Comuna comuna2 = new Comuna();
+        comuna2.setComunaId(2L);
+        comuna2.setName("Comuna 2");
+        
+        when(comunaRepository.findByRegionId(1L))
+            .thenReturn(List.of(comuna1, comuna2));
+
+        // Act & Assert
+        IllegalStateException exception = assertThrows(
+            IllegalStateException.class,
+            () -> regionService.deleteRegion(1L)
+        );
+
+        assertTrue(exception.getMessage().contains("No se puede eliminar la región"));
+        assertTrue(exception.getMessage().contains("2 comuna(s)"));
+        verify(regionRepository, never()).deleteById(any());
     }
 
     @Test

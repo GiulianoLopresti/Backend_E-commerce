@@ -1,6 +1,8 @@
 package com.looprex.geography.controller;
 
 import com.looprex.geography.dto.ApiResponse;
+import com.looprex.geography.dto.ComunaResponse;
+import com.looprex.geography.mapper.ComunaMapper;
 import com.looprex.geography.model.Comuna;
 import com.looprex.geography.service.ComunaService;
 
@@ -20,20 +22,22 @@ import java.util.Optional;
 public class ComunaController {
 
     private final ComunaService comunaService;
+    private final ComunaMapper comunaMapper;  // Agregar mapper
 
     private static final String COMUNA_NOT_FOUND = "Comuna no encontrada";
 
-    public ComunaController(ComunaService comunaService) {
+    public ComunaController(ComunaService comunaService, ComunaMapper comunaMapper) {
         this.comunaService = comunaService;
+        this.comunaMapper = comunaMapper;  // Inyectar mapper
     }
 
     @Operation(summary = "Obtener todas las comunas")
     @GetMapping
-    public ResponseEntity<ApiResponse<List<Comuna>>> getAllComunas() {
+    public ResponseEntity<ApiResponse<List<ComunaResponse>>> getAllComunas() {
         List<Comuna> comunas = comunaService.getAllComunas();
         
         if (comunas.isEmpty()) {
-            ApiResponse<List<Comuna>> response = new ApiResponse<>(
+            ApiResponse<List<ComunaResponse>> response = new ApiResponse<>(
                 false,
                 HttpStatus.NO_CONTENT.value(),
                 "No se encontraron comunas en el sistema",
@@ -43,31 +47,39 @@ public class ComunaController {
             return ResponseEntity.status(HttpStatus.NO_CONTENT).body(response);
         }
         
-        ApiResponse<List<Comuna>> response = new ApiResponse<>(
+        // Mapear a DTOs
+        List<ComunaResponse> comunaResponses = comunas.stream()
+                .map(comunaMapper::toComunaResponse)
+                .toList();
+        
+        ApiResponse<List<ComunaResponse>> response = new ApiResponse<>(
             true,
             HttpStatus.OK.value(),
             "Comunas obtenidas exitosamente",
-            comunas,
-            (long) comunas.size()
+            comunaResponses,
+            (long) comunaResponses.size()
         );
         return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "Obtener comuna por ID")
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<Comuna>> getComunaById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<ComunaResponse>> getComunaById(@PathVariable Long id) {
         Optional<Comuna> comunaOpt = comunaService.getComunaById(id);
         
         if (comunaOpt.isPresent()) {
-            ApiResponse<Comuna> response = new ApiResponse<>(
+            // Mapear a DTO
+            ComunaResponse comunaResponse = comunaMapper.toComunaResponse(comunaOpt.get());
+            
+            ApiResponse<ComunaResponse> response = new ApiResponse<>(
                 true,
                 HttpStatus.OK.value(),
                 "Comuna encontrada",
-                comunaOpt.get()
+                comunaResponse
             );
             return ResponseEntity.ok(response);
         } else {
-            ApiResponse<Comuna> response = new ApiResponse<>(
+            ApiResponse<ComunaResponse> response = new ApiResponse<>(
                 false,
                 HttpStatus.NOT_FOUND.value(),
                 COMUNA_NOT_FOUND
@@ -78,33 +90,42 @@ public class ComunaController {
 
     @Operation(summary = "Obtener comunas por región")
     @GetMapping("/region/{regionId}")
-    public ResponseEntity<ApiResponse<List<Comuna>>> getComunasByRegionId(@PathVariable Long regionId) {
+    public ResponseEntity<ApiResponse<List<ComunaResponse>>> getComunasByRegionId(@PathVariable Long regionId) {
         List<Comuna> comunas = comunaService.getComunasByRegionId(regionId);
         
-        ApiResponse<List<Comuna>> response = new ApiResponse<>(
+        // Mapear a DTOs
+        List<ComunaResponse> comunaResponses = comunas.stream()
+                .map(comunaMapper::toComunaResponse)
+                .toList();
+        
+        ApiResponse<List<ComunaResponse>> response = new ApiResponse<>(
             true,
             HttpStatus.OK.value(),
             "Comunas obtenidas exitosamente",
-            comunas,
-            (long) comunas.size()
+            comunaResponses,
+            (long) comunaResponses.size()
         );
         return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "Crear nueva comuna")
     @PostMapping
-    public ResponseEntity<ApiResponse<Comuna>> createComuna(@RequestBody Comuna comuna) {
+    public ResponseEntity<ApiResponse<ComunaResponse>> createComuna(@RequestBody Comuna comuna) {
         try {
             Comuna created = comunaService.createComuna(comuna);
-            ApiResponse<Comuna> response = new ApiResponse<>(
+            
+            // Mapear a DTO
+            ComunaResponse comunaResponse = comunaMapper.toComunaResponse(created);
+            
+            ApiResponse<ComunaResponse> response = new ApiResponse<>(
                 true,
                 HttpStatus.CREATED.value(),
                 "Comuna creada exitosamente",
-                created
+                comunaResponse
             );
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (IllegalArgumentException e) {
-            ApiResponse<Comuna> response = new ApiResponse<>(
+            ApiResponse<ComunaResponse> response = new ApiResponse<>(
                 false,
                 HttpStatus.BAD_REQUEST.value(),
                 e.getMessage()
@@ -115,33 +136,27 @@ public class ComunaController {
 
     @Operation(summary = "Actualizar comuna")
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<Comuna>> updateComuna(@PathVariable Long id, @RequestBody Comuna comuna) {
-        try {
-            Optional<Comuna> updatedOpt = comunaService.updateComuna(id, comuna);
+    public ResponseEntity<ApiResponse<ComunaResponse>> updateComuna(@PathVariable Long id, @RequestBody Comuna updatedComuna) {
+        Optional<Comuna> comunaOpt = comunaService.updateComuna(id, updatedComuna);
+        
+        if (comunaOpt.isPresent()) {
+            // Mapear a DTO
+            ComunaResponse comunaResponse = comunaMapper.toComunaResponse(comunaOpt.get());
             
-            if (updatedOpt.isPresent()) {
-                ApiResponse<Comuna> response = new ApiResponse<>(
-                    true,
-                    HttpStatus.OK.value(),
-                    "Comuna actualizada exitosamente",
-                    updatedOpt.get()
-                );
-                return ResponseEntity.ok(response);
-            } else {
-                ApiResponse<Comuna> response = new ApiResponse<>(
-                    false,
-                    HttpStatus.NOT_FOUND.value(),
-                    COMUNA_NOT_FOUND
-                );
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-            }
-        } catch (IllegalArgumentException e) {
-            ApiResponse<Comuna> response = new ApiResponse<>(
-                false,
-                HttpStatus.BAD_REQUEST.value(),
-                e.getMessage()
+            ApiResponse<ComunaResponse> response = new ApiResponse<>(
+                true,
+                HttpStatus.OK.value(),
+                "Comuna actualizada exitosamente",
+                comunaResponse
             );
-            return ResponseEntity.badRequest().body(response);
+            return ResponseEntity.ok(response);
+        } else {
+            ApiResponse<ComunaResponse> response = new ApiResponse<>(
+                false,
+                HttpStatus.NOT_FOUND.value(),
+                COMUNA_NOT_FOUND
+            );
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
         }
     }
 

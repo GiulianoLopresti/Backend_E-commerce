@@ -1,6 +1,8 @@
 package com.looprex.geography.controller;
 
+import com.looprex.geography.dto.AddressResponse;
 import com.looprex.geography.dto.ApiResponse;
+import com.looprex.geography.mapper.AddressMapper;
 import com.looprex.geography.model.Address;
 import com.looprex.geography.service.AddressService;
 
@@ -20,20 +22,22 @@ import java.util.Optional;
 public class AddressController {
 
     private final AddressService addressService;
+    private final AddressMapper addressMapper;  // Agregar mapper
 
     private static final String ADDRESS_NOT_FOUND = "Dirección no encontrada";
 
-    public AddressController(AddressService addressService) {
+    public AddressController(AddressService addressService, AddressMapper addressMapper) {
         this.addressService = addressService;
+        this.addressMapper = addressMapper;  // Inyectar mapper
     }
 
     @Operation(summary = "Obtener todas las direcciones")
     @GetMapping
-    public ResponseEntity<ApiResponse<List<Address>>> getAllAddresses() {
+    public ResponseEntity<ApiResponse<List<AddressResponse>>> getAllAddresses() {
         List<Address> addresses = addressService.getAllAddresses();
         
         if (addresses.isEmpty()) {
-            ApiResponse<List<Address>> response = new ApiResponse<>(
+            ApiResponse<List<AddressResponse>> response = new ApiResponse<>(
                 false,
                 HttpStatus.NO_CONTENT.value(),
                 "No se encontraron direcciones en el sistema",
@@ -43,31 +47,39 @@ public class AddressController {
             return ResponseEntity.status(HttpStatus.NO_CONTENT).body(response);
         }
         
-        ApiResponse<List<Address>> response = new ApiResponse<>(
+        // Mapear a DTOs
+        List<AddressResponse> addressResponses = addresses.stream()
+                .map(addressMapper::toAddressResponse)
+                .toList();
+        
+        ApiResponse<List<AddressResponse>> response = new ApiResponse<>(
             true,
             HttpStatus.OK.value(),
             "Direcciones obtenidas exitosamente",
-            addresses,
-            (long) addresses.size()
+            addressResponses,
+            (long) addressResponses.size()
         );
         return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "Obtener dirección por ID")
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<Address>> getAddressById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<AddressResponse>> getAddressById(@PathVariable Long id) {
         Optional<Address> addressOpt = addressService.getAddressById(id);
         
         if (addressOpt.isPresent()) {
-            ApiResponse<Address> response = new ApiResponse<>(
+            // Mapear a DTO
+            AddressResponse addressResponse = addressMapper.toAddressResponse(addressOpt.get());
+            
+            ApiResponse<AddressResponse> response = new ApiResponse<>(
                 true,
                 HttpStatus.OK.value(),
                 "Dirección encontrada",
-                addressOpt.get()
+                addressResponse
             );
             return ResponseEntity.ok(response);
         } else {
-            ApiResponse<Address> response = new ApiResponse<>(
+            ApiResponse<AddressResponse> response = new ApiResponse<>(
                 false,
                 HttpStatus.NOT_FOUND.value(),
                 ADDRESS_NOT_FOUND
@@ -78,42 +90,42 @@ public class AddressController {
 
     @Operation(summary = "Obtener direcciones por usuario")
     @GetMapping("/user/{userId}")
-    public ResponseEntity<ApiResponse<List<Address>>> getAddressesByUserId(@PathVariable Long userId) {
-        try {
-            List<Address> addresses = addressService.getAddressesByUserId(userId);
-            
-            ApiResponse<List<Address>> response = new ApiResponse<>(
-                true,
-                HttpStatus.OK.value(),
-                "Direcciones obtenidas exitosamente",
-                addresses,
-                (long) addresses.size()
-            );
-            return ResponseEntity.ok(response);
-        } catch (IllegalArgumentException e) {
-            ApiResponse<List<Address>> response = new ApiResponse<>(
-                false,
-                HttpStatus.NOT_FOUND.value(),
-                e.getMessage()
-            );
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-        }
+    public ResponseEntity<ApiResponse<List<AddressResponse>>> getAddressesByUserId(@PathVariable Long userId) {
+        List<Address> addresses = addressService.getAddressesByUserId(userId);
+        
+        // Mapear a DTOs
+        List<AddressResponse> addressResponses = addresses.stream()
+                .map(addressMapper::toAddressResponse)
+                .toList();
+        
+        ApiResponse<List<AddressResponse>> response = new ApiResponse<>(
+            true,
+            HttpStatus.OK.value(),
+            "Direcciones obtenidas exitosamente",
+            addressResponses,
+            (long) addressResponses.size()
+        );
+        return ResponseEntity.ok(response);
     }
 
     @Operation(summary = "Crear nueva dirección")
     @PostMapping
-    public ResponseEntity<ApiResponse<Address>> createAddress(@RequestBody Address address) {
+    public ResponseEntity<ApiResponse<AddressResponse>> createAddress(@RequestBody Address address) {
         try {
             Address created = addressService.createAddress(address);
-            ApiResponse<Address> response = new ApiResponse<>(
+            
+            // Mapear a DTO
+            AddressResponse addressResponse = addressMapper.toAddressResponse(created);
+            
+            ApiResponse<AddressResponse> response = new ApiResponse<>(
                 true,
                 HttpStatus.CREATED.value(),
                 "Dirección creada exitosamente",
-                created
+                addressResponse
             );
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (IllegalArgumentException e) {
-            ApiResponse<Address> response = new ApiResponse<>(
+            ApiResponse<AddressResponse> response = new ApiResponse<>(
                 false,
                 HttpStatus.BAD_REQUEST.value(),
                 e.getMessage()
@@ -124,33 +136,27 @@ public class AddressController {
 
     @Operation(summary = "Actualizar dirección")
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<Address>> updateAddress(@PathVariable Long id, @RequestBody Address address) {
-        try {
-            Optional<Address> updatedOpt = addressService.updateAddress(id, address);
+    public ResponseEntity<ApiResponse<AddressResponse>> updateAddress(@PathVariable Long id, @RequestBody Address updatedAddress) {
+        Optional<Address> addressOpt = addressService.updateAddress(id, updatedAddress);
+        
+        if (addressOpt.isPresent()) {
+            // Mapear a DTO
+            AddressResponse addressResponse = addressMapper.toAddressResponse(addressOpt.get());
             
-            if (updatedOpt.isPresent()) {
-                ApiResponse<Address> response = new ApiResponse<>(
-                    true,
-                    HttpStatus.OK.value(),
-                    "Dirección actualizada exitosamente",
-                    updatedOpt.get()
-                );
-                return ResponseEntity.ok(response);
-            } else {
-                ApiResponse<Address> response = new ApiResponse<>(
-                    false,
-                    HttpStatus.NOT_FOUND.value(),
-                    ADDRESS_NOT_FOUND
-                );
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
-            }
-        } catch (IllegalArgumentException e) {
-            ApiResponse<Address> response = new ApiResponse<>(
-                false,
-                HttpStatus.BAD_REQUEST.value(),
-                e.getMessage()
+            ApiResponse<AddressResponse> response = new ApiResponse<>(
+                true,
+                HttpStatus.OK.value(),
+                "Dirección actualizada exitosamente",
+                addressResponse
             );
-            return ResponseEntity.badRequest().body(response);
+            return ResponseEntity.ok(response);
+        } else {
+            ApiResponse<AddressResponse> response = new ApiResponse<>(
+                false,
+                HttpStatus.NOT_FOUND.value(),
+                ADDRESS_NOT_FOUND
+            );
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
         }
     }
 
