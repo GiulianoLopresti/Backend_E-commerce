@@ -21,10 +21,7 @@ public class User {
     @Schema(description = "ID único del usuario", example = "1", accessMode = Schema.AccessMode.READ_ONLY)
     private Long userId;
 
-    @NotBlank(message = "El RUT es obligatorio")
-    @Size(min = 9, max = 12, message = "El RUT debe tener entre 9 y 12 caracteres")
-    @Pattern(regexp = "^\\d{7,8}-[\\dKk]$", message = "El RUT debe tener formato válido (ej: 12345678-9)")
-    @Column(name = "rut", nullable = false, length = 12)
+    @Column(name = "rut", length = 12)
     @Schema(description = "RUT del usuario con formato chileno", example = "12345678-9")
     private String rut;
 

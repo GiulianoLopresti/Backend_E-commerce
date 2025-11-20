@@ -41,11 +41,7 @@ public class UserService {
         if (userRepository.existsByEmail(user.getEmail())) {
             throw new IllegalArgumentException("El correo electrónico ya está en uso");
         }
-
-        if (userRepository.existsByRut(user.getRut())) {
-            throw new IllegalArgumentException("El RUT ya está en uso");
-        }
-
+        
         Role role = roleRepository.findById(user.getRole().getRoleId())
                 .orElseThrow(() -> new IllegalArgumentException("El rol especificado no existe"));
 

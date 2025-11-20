@@ -23,7 +23,7 @@ public class UserResponse {
     private String name;
 
     @Schema(description = "Apellido del usuario", example = "Pérez")
-    private String lastName;
+    private String lastname;
 
     @Schema(description = "Teléfono del usuario", example = "912345678")
     private String phone;
@@ -34,11 +34,8 @@ public class UserResponse {
     @Schema(description = "URL de la foto de perfil")
     private String profilePhoto;
 
-    @Schema(description = "ID del rol", example = "2")
-    private Long roleId;
-
-    @Schema(description = "Nombre del rol", example = "CLIENT")
-    private String roleName;
+    @Schema(description = "Rol del usuario")
+    private RoleResponse role;
 
     @Schema(description = "ID del estado", example = "1")
     private Long statusId;

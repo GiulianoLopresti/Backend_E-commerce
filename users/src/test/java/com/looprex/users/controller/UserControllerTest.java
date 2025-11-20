@@ -60,11 +60,9 @@ class UserControllerTest {
                 .userId(1L)
                 .rut("12345678-9")
                 .name("Juan")
-                .lastName("Pérez")
+                .lastname("Pérez")
                 .phone("912345678")
                 .email("juan@test.com")
-                .roleId(2L)
-                .roleName("CLIENT")
                 .statusId(1L)
                 .build();
     }
