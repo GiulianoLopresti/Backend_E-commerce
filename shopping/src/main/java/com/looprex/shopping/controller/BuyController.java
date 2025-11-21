@@ -1,6 +1,8 @@
 package com.looprex.shopping.controller;
 
 import com.looprex.shopping.dto.ApiResponse;
+import com.looprex.shopping.dto.BuyResponse;
+import com.looprex.shopping.mapper.BuyMapper;
 import com.looprex.shopping.model.Buy;
 import com.looprex.shopping.service.BuyService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -21,12 +23,14 @@ import java.util.List;
 public class BuyController {
 
     private final BuyService buyService;
+    private final BuyMapper buyMapper;
     
     private static final String BUY_WITH_ID = "Compra con ID ";
     private static final String NOT_FOUND = " no encontrada";
 
-    public BuyController(BuyService buyService) {
+    public BuyController(BuyService buyService, BuyMapper buyMapper) {
         this.buyService = buyService;
+        this.buyMapper = buyMapper;
     }
 
     @GetMapping
@@ -46,7 +50,7 @@ public class BuyController {
             content = @Content(schema = @Schema(implementation = ApiResponse.class))
         )
     })
-    public ResponseEntity<ApiResponse<List<Buy>>> getAllBuys() {
+    public ResponseEntity<ApiResponse<List<BuyResponse>>> getAllBuys() {
         List<Buy> buys = buyService.getAllBuys();
 
         if (buys.isEmpty()) {
@@ -54,7 +58,8 @@ public class BuyController {
                     .body(new ApiResponse<>(false, 204, "No se encontraron compras en el sistema", null));
         }
 
-        return ResponseEntity.ok(new ApiResponse<>(true, 200, "Compras obtenidas exitosamente", buys, buys.size()));
+        List<BuyResponse> responses = buyMapper.toResponseList(buys);
+        return ResponseEntity.ok(new ApiResponse<>(true, 200, "Compras obtenidas exitosamente", responses, responses.size()));
     }
 
     @GetMapping("/{id}")
@@ -74,11 +79,11 @@ public class BuyController {
             content = @Content(schema = @Schema(implementation = ApiResponse.class))
         )
     })
-    public ResponseEntity<ApiResponse<Buy>> getBuyById(
+    public ResponseEntity<ApiResponse<BuyResponse>> getBuyById(
             @Parameter(description = "ID de la compra a buscar", example = "1", required = true)
             @PathVariable Long id) {
         return buyService.getBuyById(id)
-                .map(buy -> ResponseEntity.ok(new ApiResponse<>(true, 200, "Compra encontrada exitosamente", buy)))
+                .map(buy -> ResponseEntity.ok(new ApiResponse<>(true, 200, "Compra encontrada exitosamente", buyMapper.toResponse(buy))))
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(new ApiResponse<>(false, 404, BUY_WITH_ID + id + NOT_FOUND, null)));
     }
@@ -100,11 +105,11 @@ public class BuyController {
             content = @Content(schema = @Schema(implementation = ApiResponse.class))
         )
     })
-    public ResponseEntity<ApiResponse<Buy>> getBuyByOrderNumber(
+    public ResponseEntity<ApiResponse<BuyResponse>> getBuyByOrderNumber(
             @Parameter(description = "Número de orden de la compra", example = "ORD-2025-001", required = true)
             @PathVariable String orderNumber) {
         return buyService.getBuyByOrderNumber(orderNumber)
-                .map(buy -> ResponseEntity.ok(new ApiResponse<>(true, 200, "Compra encontrada exitosamente", buy)))
+                .map(buy -> ResponseEntity.ok(new ApiResponse<>(true, 200, "Compra encontrada exitosamente", buyMapper.toResponse(buy))))
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(new ApiResponse<>(false, 404, "Compra con número de orden " + orderNumber + NOT_FOUND, null)));
     }
@@ -131,7 +136,7 @@ public class BuyController {
             content = @Content(schema = @Schema(implementation = ApiResponse.class))
         )
     })
-    public ResponseEntity<ApiResponse<List<Buy>>> getBuysByUser(
+    public ResponseEntity<ApiResponse<List<BuyResponse>>> getBuysByUser(
             @Parameter(description = "ID del usuario", example = "1", required = true)
             @PathVariable Long userId) {
         try {
@@ -142,7 +147,8 @@ public class BuyController {
                         .body(new ApiResponse<>(false, 204, "El usuario no tiene compras", null));
             }
 
-            return ResponseEntity.ok(new ApiResponse<>(true, 200, "Compras del usuario obtenidas exitosamente", buys, buys.size()));
+            List<BuyResponse> responses = buyMapper.toResponseList(buys);
+            return ResponseEntity.ok(new ApiResponse<>(true, 200, "Compras del usuario obtenidas exitosamente", responses, responses.size()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(new ApiResponse<>(false, 404, e.getMessage(), null));
@@ -166,7 +172,7 @@ public class BuyController {
             content = @Content(schema = @Schema(implementation = ApiResponse.class))
         )
     })
-    public ResponseEntity<ApiResponse<List<Buy>>> getBuysByStatus(
+    public ResponseEntity<ApiResponse<List<BuyResponse>>> getBuysByStatus(
             @Parameter(description = "ID del estado", example = "1", required = true)
             @PathVariable Long statusId) {
         try {
@@ -177,7 +183,8 @@ public class BuyController {
                         .body(new ApiResponse<>(false, 204, "No hay compras con este estado", null));
             }
 
-            return ResponseEntity.ok(new ApiResponse<>(true, 200, "Compras por estado obtenidas exitosamente", buys, buys.size()));
+            List<BuyResponse> responses = buyMapper.toResponseList(buys);
+            return ResponseEntity.ok(new ApiResponse<>(true, 200, "Compras por estado obtenidas exitosamente", responses, responses.size()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(new ApiResponse<>(false, 404, e.getMessage(), null));
@@ -201,13 +208,14 @@ public class BuyController {
             content = @Content(schema = @Schema(implementation = ApiResponse.class))
         )
     })
-    public ResponseEntity<ApiResponse<Buy>> createBuy(
+    public ResponseEntity<ApiResponse<BuyResponse>> createBuy(
             @Parameter(description = "Datos de la compra a crear", required = true)
-            @RequestBody Buy buy) {
+            @RequestBody BuyResponse buyRequest) {
         try {
+            Buy buy = buyMapper.toEntity(buyRequest);
             Buy createdBuy = buyService.createBuy(buy);
             return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(new ApiResponse<>(true, 201, "Compra creada exitosamente", createdBuy));
+                    .body(new ApiResponse<>(true, 201, "Compra creada exitosamente", buyMapper.toResponse(createdBuy)));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ApiResponse<>(false, 400, e.getMessage(), null));
@@ -236,15 +244,16 @@ public class BuyController {
             content = @Content(schema = @Schema(implementation = ApiResponse.class))
         )
     })
-    public ResponseEntity<ApiResponse<Buy>> updateBuy(
+    public ResponseEntity<ApiResponse<BuyResponse>> updateBuy(
             @Parameter(description = "ID de la compra a actualizar", example = "1", required = true)
             @PathVariable Long id,
             @Parameter(description = "Datos actualizados de la compra", required = true)
-            @RequestBody Buy buy) {
+            @RequestBody BuyResponse buyRequest) {
         try {
+            Buy buy = buyMapper.toEntity(buyRequest);
             return buyService.updateBuy(id, buy)
                     .map(updatedBuy -> ResponseEntity.ok(
-                            new ApiResponse<>(true, 200, "Compra actualizada exitosamente", updatedBuy)))
+                            new ApiResponse<>(true, 200, "Compra actualizada exitosamente", buyMapper.toResponse(updatedBuy))))
                     .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
                             .body(new ApiResponse<>(false, 404, BUY_WITH_ID + id + NOT_FOUND, null)));
         } catch (IllegalArgumentException e) {

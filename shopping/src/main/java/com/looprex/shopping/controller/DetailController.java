@@ -1,6 +1,8 @@
 package com.looprex.shopping.controller;
 
 import com.looprex.shopping.dto.ApiResponse;
+import com.looprex.shopping.dto.DetailResponse;
+import com.looprex.shopping.mapper.DetailMapper;
 import com.looprex.shopping.model.Detail;
 import com.looprex.shopping.service.DetailService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -21,12 +23,14 @@ import java.util.List;
 public class DetailController {
 
     private final DetailService detailService;
+    private final DetailMapper detailMapper;
 
     private static final String DETAIL_WITH_ID = "Detalle con ID ";
     private static final String NOT_FOUND = " no encontrado";
 
-    public DetailController(DetailService detailService) {
+    public DetailController(DetailService detailService, DetailMapper detailMapper) {
         this.detailService = detailService;
+        this.detailMapper = detailMapper;
     }
 
     @GetMapping
@@ -46,7 +50,7 @@ public class DetailController {
             content = @Content(schema = @Schema(implementation = ApiResponse.class))
         )
     })
-    public ResponseEntity<ApiResponse<List<Detail>>> getAllDetails() {
+    public ResponseEntity<ApiResponse<List<DetailResponse>>> getAllDetails() {
         List<Detail> details = detailService.getAllDetails();
 
         if (details.isEmpty()) {
@@ -54,7 +58,8 @@ public class DetailController {
                     .body(new ApiResponse<>(false, 204, "No se encontraron detalles en el sistema", null));
         }
 
-        return ResponseEntity.ok(new ApiResponse<>(true, 200, "Detalles obtenidos exitosamente", details, details.size()));
+        List<DetailResponse> responses = detailMapper.toResponseList(details);
+        return ResponseEntity.ok(new ApiResponse<>(true, 200, "Detalles obtenidos exitosamente", responses, responses.size()));
     }
 
     @GetMapping("/{id}")
@@ -74,11 +79,11 @@ public class DetailController {
             content = @Content(schema = @Schema(implementation = ApiResponse.class))
         )
     })
-    public ResponseEntity<ApiResponse<Detail>> getDetailById(
+    public ResponseEntity<ApiResponse<DetailResponse>> getDetailById(
             @Parameter(description = "ID del detalle a buscar", example = "1", required = true)
             @PathVariable Long id) {
         return detailService.getDetailById(id)
-                .map(detail -> ResponseEntity.ok(new ApiResponse<>(true, 200, "Detalle encontrado exitosamente", detail)))
+                .map(detail -> ResponseEntity.ok(new ApiResponse<>(true, 200, "Detalle encontrado exitosamente", detailMapper.toResponse(detail))))
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(new ApiResponse<>(false, 404, DETAIL_WITH_ID + id + NOT_FOUND, null)));
     }
@@ -105,7 +110,7 @@ public class DetailController {
             content = @Content(schema = @Schema(implementation = ApiResponse.class))
         )
     })
-    public ResponseEntity<ApiResponse<List<Detail>>> getDetailsByBuy(
+    public ResponseEntity<ApiResponse<List<DetailResponse>>> getDetailsByBuy(
             @Parameter(description = "ID de la compra", example = "1", required = true)
             @PathVariable Long buyId) {
         try {
@@ -116,7 +121,8 @@ public class DetailController {
                         .body(new ApiResponse<>(false, 204, "La compra no tiene detalles", null));
             }
 
-            return ResponseEntity.ok(new ApiResponse<>(true, 200, "Detalles de la compra obtenidos exitosamente", details, details.size()));
+            List<DetailResponse> responses = detailMapper.toResponseList(details);
+            return ResponseEntity.ok(new ApiResponse<>(true, 200, "Detalles de la compra obtenidos exitosamente", responses, responses.size()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(new ApiResponse<>(false, 404, e.getMessage(), null));
@@ -145,7 +151,7 @@ public class DetailController {
             content = @Content(schema = @Schema(implementation = ApiResponse.class))
         )
     })
-    public ResponseEntity<ApiResponse<List<Detail>>> getDetailsByProduct(
+    public ResponseEntity<ApiResponse<List<DetailResponse>>> getDetailsByProduct(
             @Parameter(description = "ID del producto", example = "1", required = true)
             @PathVariable Long productId) {
         try {
@@ -156,7 +162,8 @@ public class DetailController {
                         .body(new ApiResponse<>(false, 204, "El producto no tiene ventas", null));
             }
 
-            return ResponseEntity.ok(new ApiResponse<>(true, 200, "Detalles del producto obtenidos exitosamente", details, details.size()));
+            List<DetailResponse> responses = detailMapper.toResponseList(details);
+            return ResponseEntity.ok(new ApiResponse<>(true, 200, "Detalles del producto obtenidos exitosamente", responses, responses.size()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(new ApiResponse<>(false, 404, e.getMessage(), null));
@@ -180,13 +187,14 @@ public class DetailController {
             content = @Content(schema = @Schema(implementation = ApiResponse.class))
         )
     })
-    public ResponseEntity<ApiResponse<Detail>> createDetail(
+    public ResponseEntity<ApiResponse<DetailResponse>> createDetail(
             @Parameter(description = "Datos del detalle a crear", required = true)
-            @RequestBody Detail detail) {
+            @RequestBody DetailResponse detailRequest) {
         try {
+            Detail detail = detailMapper.toEntity(detailRequest);
             Detail createdDetail = detailService.createDetail(detail);
             return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(new ApiResponse<>(true, 201, "Detalle creado exitosamente", createdDetail));
+                    .body(new ApiResponse<>(true, 201, "Detalle creado exitosamente", detailMapper.toResponse(createdDetail)));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ApiResponse<>(false, 400, e.getMessage(), null));
@@ -215,15 +223,16 @@ public class DetailController {
             content = @Content(schema = @Schema(implementation = ApiResponse.class))
         )
     })
-    public ResponseEntity<ApiResponse<Detail>> updateDetail(
+    public ResponseEntity<ApiResponse<DetailResponse>> updateDetail(
             @Parameter(description = "ID del detalle a actualizar", example = "1", required = true)
             @PathVariable Long id,
             @Parameter(description = "Datos actualizados del detalle", required = true)
-            @RequestBody Detail detail) {
+            @RequestBody DetailResponse detailRequest) {
         try {
+            Detail detail = detailMapper.toEntity(detailRequest);
             return detailService.updateDetail(id, detail)
                     .map(updatedDetail -> ResponseEntity.ok(
-                            new ApiResponse<>(true, 200, "Detalle actualizado exitosamente", updatedDetail)))
+                            new ApiResponse<>(true, 200, "Detalle actualizado exitosamente", detailMapper.toResponse(updatedDetail))))
                     .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
                             .body(new ApiResponse<>(false, 404, DETAIL_WITH_ID + id + NOT_FOUND, null)));
         } catch (IllegalArgumentException e) {
