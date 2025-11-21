@@ -1,6 +1,8 @@
 package com.looprex.products.controller;
 
 import com.looprex.products.dto.ApiResponse;
+import com.looprex.products.dto.ProductResponse;
+import com.looprex.products.mapper.ProductMapper;
 import com.looprex.products.model.Product;
 import com.looprex.products.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,12 +24,14 @@ import java.util.List;
 public class ProductController {
 
     private final ProductService productService;
+    private final ProductMapper productMapper;
 
     private static final String NOT_FOUND = "No encontrada";
     private static final String PRODUCT_WITH_ID = "Producto con ID ";
 
-    public ProductController(ProductService productService) {
+    public ProductController(ProductService productService, ProductMapper productMapper) {
         this.productService = productService;
+        this.productMapper = productMapper;
     }
 
     @GetMapping
@@ -48,7 +52,7 @@ public class ProductController {
             content = @Content(schema = @Schema(implementation = ApiResponse.class))
         )
     })
-    public ResponseEntity<ApiResponse<List<Product>>> getAllProducts() {
+    public ResponseEntity<ApiResponse<List<ProductResponse>>> getAllProducts() {
         List<Product> products = productService.getAllProducts();
 
         if (products.isEmpty()) {
@@ -56,7 +60,12 @@ public class ProductController {
                     .body(new ApiResponse<>(false, 204, "No se encontraron productos en el sistema", null));
         }
 
-        return ResponseEntity.ok(new ApiResponse<>(true, 200, "Productos obtenidos exitosamente", products, products.size()));
+        // Mapear a DTOs
+        List<ProductResponse> productResponses = products.stream()
+                .map(productMapper::toProductResponse)
+                .toList();
+
+        return ResponseEntity.ok(new ApiResponse<>(true, 200, "Productos obtenidos exitosamente", productResponses, productResponses.size()));
     }
 
     @GetMapping("/{id}")
@@ -76,11 +85,14 @@ public class ProductController {
             content = @Content(schema = @Schema(implementation = ApiResponse.class))
         )
     })
-    public ResponseEntity<ApiResponse<Product>> getProductById(
+    public ResponseEntity<ApiResponse<ProductResponse>> getProductById(
             @Parameter(description = "ID del producto a buscar", example = "1", required = true)
             @PathVariable Long id) {
         return productService.getProductById(id)
-                .map(product -> ResponseEntity.ok(new ApiResponse<>(true, 200, "Producto encontrado exitosamente", product)))
+                .map(product -> {
+                    ProductResponse response = productMapper.toProductResponse(product);
+                    return ResponseEntity.ok(new ApiResponse<>(true, 200, "Producto encontrado exitosamente", response));
+                })
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(new ApiResponse<>(false, 404, PRODUCT_WITH_ID + id + NOT_FOUND, null)));
     }
@@ -102,7 +114,7 @@ public class ProductController {
             content = @Content(schema = @Schema(implementation = ApiResponse.class))
         )
     })
-    public ResponseEntity<ApiResponse<List<Product>>> getProductsByCategory(
+    public ResponseEntity<ApiResponse<List<ProductResponse>>> getProductsByCategory(
             @Parameter(description = "ID de la categoría", example = "1", required = true)
             @PathVariable Long categoryId) {
         List<Product> products = productService.getProductsByCategory(categoryId);
@@ -112,7 +124,12 @@ public class ProductController {
                     .body(new ApiResponse<>(false, 204, "No se encontraron productos en esta categoría", null));
         }
 
-        return ResponseEntity.ok(new ApiResponse<>(true, 200, "Productos de la categoría obtenidos exitosamente", products, products.size()));
+        // Mapear a DTOs
+        List<ProductResponse> productResponses = products.stream()
+                .map(productMapper::toProductResponse)
+                .toList();
+
+        return ResponseEntity.ok(new ApiResponse<>(true, 200, "Productos de la categoría obtenidos exitosamente", productResponses, productResponses.size()));
     }
 
     @GetMapping("/search")
@@ -132,7 +149,7 @@ public class ProductController {
             content = @Content(schema = @Schema(implementation = ApiResponse.class))
         )
     })
-    public ResponseEntity<ApiResponse<List<Product>>> searchProducts(
+    public ResponseEntity<ApiResponse<List<ProductResponse>>> searchProducts(
             @Parameter(description = "Texto a buscar en el nombre del producto", example = "RTX", required = true)
             @RequestParam String query) {
         List<Product> products = productService.searchProducts(query);
@@ -142,7 +159,12 @@ public class ProductController {
                     .body(new ApiResponse<>(false, 204, "No se encontraron productos que coincidan con la búsqueda", null));
         }
 
-        return ResponseEntity.ok(new ApiResponse<>(true, 200, "Búsqueda completada exitosamente", products, products.size()));
+        // Mapear a DTOs
+        List<ProductResponse> productResponses = products.stream()
+                .map(productMapper::toProductResponse)
+                .toList();
+
+        return ResponseEntity.ok(new ApiResponse<>(true, 200, "Búsqueda completada exitosamente", productResponses, productResponses.size()));
     }
 
     @GetMapping("/status/{statusId}")
@@ -162,7 +184,7 @@ public class ProductController {
             content = @Content(schema = @Schema(implementation = ApiResponse.class))
         )
     })
-    public ResponseEntity<ApiResponse<List<Product>>> getProductsByStatus(
+    public ResponseEntity<ApiResponse<List<ProductResponse>>> getProductsByStatus(
             @Parameter(description = "ID del estado", example = "1", required = true)
             @PathVariable Long statusId) {
         List<Product> products = productService.getProductsByStatus(statusId);
@@ -172,7 +194,12 @@ public class ProductController {
                     .body(new ApiResponse<>(false, 204, "No se encontraron productos con este estado", null));
         }
 
-        return ResponseEntity.ok(new ApiResponse<>(true, 200, "Productos por estado obtenidos exitosamente", products, products.size()));
+        // Mapear a DTOs
+        List<ProductResponse> productResponses = products.stream()
+                .map(productMapper::toProductResponse)
+                .toList();
+
+        return ResponseEntity.ok(new ApiResponse<>(true, 200, "Productos por estado obtenidos exitosamente", productResponses, productResponses.size()));
     }
 
     @PostMapping
@@ -192,13 +219,15 @@ public class ProductController {
             content = @Content(schema = @Schema(implementation = ApiResponse.class))
         )
     })
-    public ResponseEntity<ApiResponse<Product>> createProduct(
+    public ResponseEntity<ApiResponse<ProductResponse>> createProduct(
             @Parameter(description = "Datos del producto a crear", required = true)
             @Valid @RequestBody Product product) {
         try {
             Product createdProduct = productService.createProduct(product);
+            ProductResponse response = productMapper.toProductResponse(createdProduct);
+            
             return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(new ApiResponse<>(true, 201, "Producto creado exitosamente", createdProduct));
+                    .body(new ApiResponse<>(true, 201, "Producto creado exitosamente", response));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ApiResponse<>(false, 400, e.getMessage(), null));
@@ -227,15 +256,18 @@ public class ProductController {
             content = @Content(schema = @Schema(implementation = ApiResponse.class))
         )
     })
-    public ResponseEntity<ApiResponse<Product>> updateProduct(
+    public ResponseEntity<ApiResponse<ProductResponse>> updateProduct(
              @Parameter(description = "ID del producto a actualizar", example = "1", required = true)
              @PathVariable Long id,
              @Parameter(description = "Datos actualizados del producto", required = true)
              @RequestBody Product product) {
         try {
             return productService.updateProduct(id, product)
-                    .map(updatedProduct -> ResponseEntity.ok(
-                            new ApiResponse<>(true, 200, "Producto actualizado exitosamente", updatedProduct)))
+                    .map(updatedProduct -> {
+                        ProductResponse response = productMapper.toProductResponse(updatedProduct);
+                        return ResponseEntity.ok(
+                                new ApiResponse<>(true, 200, "Producto actualizado exitosamente", response));
+                    })
                     .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
                             .body(new ApiResponse<>(false, 404, PRODUCT_WITH_ID + id + NOT_FOUND, null)));
         } catch (IllegalArgumentException e) {

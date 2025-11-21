@@ -1,7 +1,8 @@
 package com.looprex.products.controller;
 
 import com.looprex.products.dto.ApiResponse;
-import com.looprex.products.model.Status;
+import com.looprex.products.dto.StatusResponse;
+import com.looprex.products.mapper.StatusMapper;
 import com.looprex.products.service.StatusService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -21,9 +22,11 @@ import java.util.List;
 public class StatusController {
 
     private final StatusService statusService;
+    private final StatusMapper statusMapper;
 
-    public StatusController(StatusService statusService) {
+    public StatusController(StatusService statusService, StatusMapper statusMapper) {
         this.statusService = statusService;
+        this.statusMapper = statusMapper;
     }
 
     @GetMapping
@@ -44,15 +47,20 @@ public class StatusController {
             content = @Content(schema = @Schema(implementation = ApiResponse.class))
         )
     })
-    public ResponseEntity<ApiResponse<List<Status>>> getAllStatuses() {
-        List<Status> statuses = statusService.getAllStatuses();
+    public ResponseEntity<ApiResponse<List<StatusResponse>>> getAllStatuses() {
+        List<com.looprex.products.model.Status> statuses = statusService.getAllStatuses();
 
         if (statuses.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NO_CONTENT)
                     .body(new ApiResponse<>(false, 204, "No se encontraron estados en el sistema", null));
         }
 
-        return ResponseEntity.ok(new ApiResponse<>(true, 200, "Estados obtenidos exitosamente", statuses, statuses.size()));
+        // Mapear a DTOs
+        List<StatusResponse> statusResponses = statuses.stream()
+                .map(statusMapper::toStatusResponse)
+                .toList();
+
+        return ResponseEntity.ok(new ApiResponse<>(true, 200, "Estados obtenidos exitosamente", statusResponses, statusResponses.size()));
     }
 
     @GetMapping("/{id}")
@@ -72,11 +80,14 @@ public class StatusController {
             content = @Content(schema = @Schema(implementation = ApiResponse.class))
         )
     })
-    public ResponseEntity<ApiResponse<Status>> getStatusById(
+    public ResponseEntity<ApiResponse<StatusResponse>> getStatusById(
             @Parameter(description = "ID del estado a buscar", example = "1", required = true)
             @PathVariable Long id) {
         return statusService.getStatusById(id)
-                .map(status -> ResponseEntity.ok(new ApiResponse<>(true, 200, "Estado encontrado exitosamente", status)))
+                .map(status -> {
+                    StatusResponse response = statusMapper.toStatusResponse(status);
+                    return ResponseEntity.ok(new ApiResponse<>(true, 200, "Estado encontrado exitosamente", response));
+                })
                 .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(new ApiResponse<>(false, 404, "Estado con ID " + id + " no encontrado", null)));
     }

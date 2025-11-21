@@ -1,7 +1,9 @@
 package com.looprex.products.service;
 
 import com.looprex.products.model.Category;
+import com.looprex.products.model.Product;
 import com.looprex.products.repository.CategoryRepository;
+import com.looprex.products.repository.ProductRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,6 +24,9 @@ class CategoryServiceTest {
 
     @Mock
     private CategoryRepository categoryRepository;
+
+    @Mock
+    private ProductRepository productRepository;
 
     @InjectMocks
     private CategoryService categoryService;
@@ -176,25 +181,47 @@ class CategoryServiceTest {
     void deleteCategory_DeberiaEliminarCategoriaExitosamente() {
         // Arrange
         when(categoryRepository.existsById(1L)).thenReturn(true);
+        when(productRepository.findByCategoryId(1L)).thenReturn(List.of());
 
-        // Act
-        boolean result = categoryService.deleteCategory(1L);
-
-        // Assert
-        assertTrue(result);
+        // Act & Assert
+        assertDoesNotThrow(() -> categoryService.deleteCategory(1L));
         verify(categoryRepository, times(1)).deleteById(1L);
     }
 
     @Test
-    void deleteCategory_DeberiaRetornarFalsoCuandoCategoriaNoExiste() {
+    void deleteCategory_DeberiaLanzarExcepcionCuandoCategoriaNoExiste() {
         // Arrange
         when(categoryRepository.existsById(999L)).thenReturn(false);
 
-        // Act
-        boolean result = categoryService.deleteCategory(999L);
+        // Act & Assert
+        IllegalArgumentException exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> categoryService.deleteCategory(999L)
+        );
 
-        // Assert
-        assertFalse(result);
+        assertEquals("Categoría no encontrada", exception.getMessage());
+        verify(categoryRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void deleteCategory_DeberiaLanzarExcepcionCuandoTieneProductosAsociados() {
+        // Arrange
+        when(categoryRepository.existsById(1L)).thenReturn(true);
+
+        Product product1 = new Product();
+        product1.setProductId(1L);
+        Product product2 = new Product();
+        product2.setProductId(2L);
+
+        when(productRepository.findByCategoryId(1L)).thenReturn(Arrays.asList(product1, product2));
+
+        // Act & Assert
+        IllegalStateException exception = assertThrows(
+            IllegalStateException.class,
+            () -> categoryService.deleteCategory(1L)
+        );
+
+        assertTrue(exception.getMessage().contains("No se puede eliminar la categoría porque tiene 2 producto(s) asociado(s)"));
         verify(categoryRepository, never()).deleteById(any());
     }
 

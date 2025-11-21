@@ -1,7 +1,10 @@
 package com.looprex.products.service;
 
 import com.looprex.products.model.Category;
+import com.looprex.products.model.Product;
 import com.looprex.products.repository.CategoryRepository;
+import com.looprex.products.repository.ProductRepository;
+
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -11,9 +14,11 @@ import java.util.Optional;
 public class CategoryService {
 
     private final CategoryRepository categoryRepository;
-
-    public CategoryService(CategoryRepository categoryRepository) {
+    private final ProductRepository productRepository;
+    
+    public CategoryService(CategoryRepository categoryRepository, ProductRepository productRepository) {
         this.categoryRepository = categoryRepository;
+        this.productRepository = productRepository;
     }
 
     public List<Category> getAllCategories() {
@@ -50,12 +55,23 @@ public class CategoryService {
         });
     }
 
-    public boolean deleteCategory(Long id) {
-        if (categoryRepository.existsById(id)) {
-            categoryRepository.deleteById(id);
-            return true;
+    public void deleteCategory(Long id) { 
+        // Verificar que existe
+        if (!categoryRepository.existsById(id)) {
+            throw new IllegalArgumentException("Categoría no encontrada");
         }
-        return false;
+        
+        // Verificar que no tenga productos asociados
+        List<Product> products = productRepository.findByCategoryId(id);
+        if (!products.isEmpty()) {
+            throw new IllegalStateException(
+                "No se puede eliminar la categoría porque tiene " + 
+                products.size() + " producto(s) asociado(s). " +
+                "Elimina los productos primero."
+            );
+        }
+        // Si no tiene productos, eliminar
+        categoryRepository.deleteById(id);
     }
 
     public boolean existsByName(String name) {

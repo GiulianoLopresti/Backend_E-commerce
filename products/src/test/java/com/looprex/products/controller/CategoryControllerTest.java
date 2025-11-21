@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -159,22 +159,39 @@ class CategoryControllerTest {
     @Test
     void deleteCategory_DeberiaRetornar200CuandoEliminacionEsExitosa() throws Exception {
         // Arrange
-        when(categoryService.deleteCategory(1L)).thenReturn(true);
+        doNothing().when(categoryService).deleteCategory(1L);
 
         // Act & Assert
         mockMvc.perform(delete("/api/categories/1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success").value(true));
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.statusCode").value(200))
+                .andExpect(jsonPath("$.message").value("Categoría eliminada exitosamente"));
     }
 
     @Test
     void deleteCategory_DeberiaRetornar404CuandoCategoriaNoExiste() throws Exception {
         // Arrange
-        when(categoryService.deleteCategory(999L)).thenReturn(false);
+        doThrow(new IllegalArgumentException("Categoría no encontrada"))
+                .when(categoryService).deleteCategory(999L);
 
         // Act & Assert
         mockMvc.perform(delete("/api/categories/999"))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.success").value(false));
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.statusCode").value(404));
+    }
+
+    @Test
+    void deleteCategory_DeberiaRetornar400CuandoTieneProductosAsociados() throws Exception {
+        // Arrange
+        doThrow(new IllegalStateException("No se puede eliminar la categoría porque tiene 3 producto(s) asociado(s). Elimina los productos primero."))
+                .when(categoryService).deleteCategory(1L);
+
+        // Act & Assert
+        mockMvc.perform(delete("/api/categories/1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.statusCode").value(400));
     }
 }
