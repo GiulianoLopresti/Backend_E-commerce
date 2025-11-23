@@ -41,13 +41,12 @@ public class Product {
     )
     private Integer stock;
 
-    @Size(max = 500, message = "La URL de la foto no puede exceder los 500 caracteres")
-    @Column(length = 500)
+    @Lob
+    @Column(columnDefinition = "LONGTEXT")
     @Schema(
         description = "URL de la imagen del producto. Puede ser nulo si no tiene imagen",
         example = "https://example.com/products/rtx4090.jpg",
-        nullable = true,
-        maxLength = 500
+        nullable = true
     )
     private String productPhoto;
 

@@ -100,7 +100,7 @@ public class ProductService {
         });
     }
 
-    private void updateBasicFields(Product updatedProduct, Product existingProduct) {
+     private void updateBasicFields(Product updatedProduct, Product existingProduct) {
         if (updatedProduct.getName() != null && !updatedProduct.getName().trim().isEmpty()) {
             existingProduct.setName(updatedProduct.getName());
         }
@@ -112,9 +112,7 @@ public class ProductService {
         updatePriceIfProvided(updatedProduct, existingProduct);
         updateStockIfProvided(updatedProduct, existingProduct);
 
-        if (updatedProduct.getProductPhoto() != null) {
-            existingProduct.setProductPhoto(updatedProduct.getProductPhoto());
-        }
+        existingProduct.setProductPhoto(updatedProduct.getProductPhoto());
     }
 
     private void updatePriceIfProvided(Product updatedProduct, Product existingProduct) {
