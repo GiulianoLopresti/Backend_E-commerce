@@ -22,6 +22,7 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers("OPTIONS", "/**").permitAll()
                 .requestMatchers("/api/**").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                 .anyRequest().permitAll()
@@ -30,16 +31,29 @@ public class SecurityConfig {
         return http.build();
     }
 
-    @Bean
+     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("*"));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
+        
+        // Permitir el frontend de localhost
+        configuration.setAllowedOrigins(Arrays.asList(
+            "http://localhost:5173",
+            "http://localhost:3000",
+            "http://127.0.0.1:5173"
+        ));
+        
+        // IMPORTANTE: Incluir OPTIONS para preflight
+        configuration.setAllowedMethods(Arrays.asList(
+            "GET", "POST", "PUT", "DELETE", "OPTIONS"
+        ));
+        
+        configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
+        
         return source;
     }
 }
