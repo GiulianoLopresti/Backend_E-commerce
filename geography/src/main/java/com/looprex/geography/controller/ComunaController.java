@@ -7,6 +7,10 @@ import com.looprex.geography.model.Comuna;
 import com.looprex.geography.service.ComunaService;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import org.springframework.http.HttpStatus;
@@ -18,7 +22,12 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/comunas")
-@Tag(name = "Comunas", description = "API para gestión de comunas")
+@Tag(
+    name = "Comunas", 
+    description = "Endpoints para la gestión de comunas (divisiones administrativas locales). " +
+                  "Permite consultar el catálogo de comunas y su relación con las regiones. " +
+                  "Fundamental para normalizar las direcciones de envío."
+)
 public class ComunaController {
 
     private final ComunaService comunaService;
@@ -31,7 +40,42 @@ public class ComunaController {
         this.comunaMapper = comunaMapper;  // Inyectar mapper
     }
 
-    @Operation(summary = "Obtener todas las comunas")
+    @Operation(
+        summary = "Obtener todas las comunas",
+        description = "Retorna la lista completa de comunas disponibles en el sistema, organizadas por región."
+    )
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Lista de comunas obtenida exitosamente",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ApiResponse.class),
+                examples = @ExampleObject(
+                    value = """
+                    {
+                      "success": true,
+                      "statusCode": 200,
+                      "message": "Comunas obtenidas exitosamente",
+                      "data": [
+                        {
+                          "comunaId": 1,
+                          "name": "Santiago",
+                          "region": { "regionId": 1, "name": "Región Metropolitana" }
+                        },
+                        {
+                          "comunaId": 2,
+                          "name": "Viña del Mar",
+                          "region": { "regionId": 2, "name": "Región de Valparaíso" }
+                        }
+                      ],
+                      "count": 2
+                    }
+                    """
+                )
+            )
+        )
+    })
     @GetMapping
     public ResponseEntity<ApiResponse<List<ComunaResponse>>> getAllComunas() {
         List<Comuna> comunas = comunaService.getAllComunas();
@@ -62,7 +106,12 @@ public class ComunaController {
         return ResponseEntity.ok(response);
     }
 
+
     @Operation(summary = "Obtener comuna por ID")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Comuna encontrada"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Comuna no encontrada")
+    })
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<ComunaResponse>> getComunaById(@PathVariable Long id) {
         Optional<Comuna> comunaOpt = comunaService.getComunaById(id);
@@ -88,7 +137,17 @@ public class ComunaController {
         }
     }
 
-    @Operation(summary = "Obtener comunas por región")
+    @Operation(
+        summary = "Obtener comunas por región",
+        description = "Filtra y retorna las comunas pertenecientes a una región específica."
+    )
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Comunas de la región obtenidas exitosamente",
+            content = @Content(schema = @Schema(implementation = ApiResponse.class))
+        )
+    })
     @GetMapping("/region/{regionId}")
     public ResponseEntity<ApiResponse<List<ComunaResponse>>> getComunasByRegionId(@PathVariable Long regionId) {
         List<Comuna> comunas = comunaService.getComunasByRegionId(regionId);
@@ -109,6 +168,10 @@ public class ComunaController {
     }
 
     @Operation(summary = "Crear nueva comuna")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Comuna creada"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Nombre duplicado o datos inválidos")
+    })
     @PostMapping
     public ResponseEntity<ApiResponse<ComunaResponse>> createComuna(@RequestBody Comuna comuna) {
         try {

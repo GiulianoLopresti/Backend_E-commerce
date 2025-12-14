@@ -7,6 +7,10 @@ import com.looprex.geography.model.Region;
 import com.looprex.geography.service.RegionService;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import org.springframework.http.HttpStatus;
@@ -19,7 +23,11 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/regions")
-@Tag(name = "Regiones", description = "API para gestión de regiones")
+@Tag(
+    name = "Regiones", 
+    description = "Endpoints para la gestión de regiones (divisiones administrativas superiores). " +
+                  "Permite administrar el catálogo de regiones del país. Las regiones contienen comunas."
+)
 public class RegionController {
 
     private final RegionService regionService;
@@ -32,7 +40,34 @@ public class RegionController {
         this.regionMapper = regionMapper;  // Inyectar mapper
     }
 
-    @Operation(summary = "Obtener todas las regiones")
+    @Operation(
+        summary = "Obtener todas las regiones",
+        description = "Retorna la lista completa de regiones configuradas en el sistema."
+    )
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "200",
+            description = "Lista de regiones obtenida exitosamente",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = ApiResponse.class),
+                examples = @ExampleObject(
+                    value = """
+                    {
+                      "success": true,
+                      "statusCode": 200,
+                      "message": "Regiones obtenidas exitosamente",
+                      "data": [
+                        { "regionId": 1, "name": "Región Metropolitana" },
+                        { "regionId": 2, "name": "Región de Valparaíso" }
+                      ],
+                      "count": 2
+                    }
+                    """
+                )
+            )
+        )
+    })
     @GetMapping
     public ResponseEntity<ApiResponse<List<RegionResponse>>> getAllRegions() {
         List<Region> regions = regionService.getAllRegions();
@@ -64,6 +99,10 @@ public class RegionController {
     }
 
     @Operation(summary = "Obtener región por ID")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Región encontrada"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Región no encontrada")
+    })
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<RegionResponse>> getRegionById(@PathVariable Long id) {
         Optional<Region> regionOpt = regionService.getRegionById(id);
@@ -89,7 +128,11 @@ public class RegionController {
         }
     }
 
-    @Operation(summary = "Crear nueva región")
+    @Operation(summary = "Crear nueva región", description = "Crea una nueva región. El nombre debe ser único.")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Región creada"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Nombre duplicado o vacío")
+    })
     @PostMapping
     public ResponseEntity<ApiResponse<RegionResponse>> createRegion(@RequestBody Region region) {
         try {
@@ -141,7 +184,18 @@ public class RegionController {
         }
     }
 
-    @Operation(summary = "Eliminar región")
+    @Operation(
+        summary = "Eliminar región", 
+        description = "Elimina una región. No se permite eliminar si tiene comunas asociadas."
+    )
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Región eliminada"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(
+            responseCode = "400", 
+            description = "No se puede eliminar: tiene comunas asociadas"
+        ),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Región no encontrada")
+    })
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteRegion(@PathVariable Long id) {
         try {
